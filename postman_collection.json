@@ -1,0 +1,909 @@
+{
+  "info": {
+    "name": "ElectricitySplit API Collection",
+    "_postman_id": "electricity-split-api-v1",
+    "description": "家庭电费分摊计算器 - 完整API测试集合\n\n默认环境变量：\n- baseUrl: http://localhost:8094\n- token: 登录后自动获取\n\n测试账号：zhangsan / lisi / wangwu / zhaoliu，密码都是 123456",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8094",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth 认证模块",
+      "item": [
+        {
+          "name": "1.1 用户注册",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser{{$randomInt}}\"\n  \"email\": \"test{{$randomInt}}@example.com\",\n  \"password\": \"123456\",\n  \"avatar\": \"测试用户头像\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "注册新用户账号"
+          }
+        },
+        {
+          "name": "1.2 用户登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"登录成功 - 状态码 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                  "    console.log(\"Token已保存到集合变量:\", jsonData.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"zhangsan\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "使用用户名或邮箱登录，登录成功后Token会自动保存到集合变量"
+          }
+        },
+        {
+          "name": "1.3 获取当前用户信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "获取当前登录用户的详细信息（需要先登录）"
+          }
+        },
+        {
+          "name": "1.4 更新当前用户信息",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"avatar\": \"更新后的头像URL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "更新当前用户的头像或密码"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Household 住户管理",
+      "item": [
+        {
+          "name": "2.1 创建住户",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"创建住户成功\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"householdId\", jsonData.data.id);",
+                  "        console.log(\"住户ID已保存:\", jsonData.data.id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试住户-{{$randomInt}}\n  \"address\": \"测试地址-详细地址信息\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/households",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "households"]
+            },
+            "description": "创建新的住户（一套房子/公寓）"
+          }
+        },
+        {
+          "name": "2.2 获取住户列表（分页）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/households?page=0&size=10&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "households"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "description": "页码（从0开始）"
+                },
+                {
+                  "key": "size",
+                  "value": "10",
+                  "description": "每页数量"
+                },
+                {
+                  "key": "keyword",
+                  "value": "",
+                  "disabled": true,
+                  "description": "关键词搜索（名称/地址）"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc",
+                  "description": "排序字段,方向"
+                }
+              ]
+            },
+            "description": "分页查询当前用户的住户列表"
+          }
+        },
+        {
+          "name": "2.3 获取住户详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/households/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "households", "1"]
+            },
+            "description": "根据ID获取住户详细信息（种子数据中的张三住户ID=1）"
+          }
+        },
+        {
+          "name": "2.4 更新住户信息",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新后的住户名称\",\n  \"address\": \"更新后的详细地址\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/households/{{householdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "households", "{{householdId}}"]
+            },
+            "description": "更新指定住户的名称或地址"
+          }
+        },
+        {
+          "name": "2.5 删除住户",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/households/{{householdId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "households", "{{householdId}}"]
+            },
+            "description": "删除指定住户（会级联删除房间、读数、账单等关联数据）"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Room 房间管理",
+      "item": [
+        {
+          "name": "3.1 创建房间",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"创建房间成功\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"roomId\", jsonData.data.id);",
+                  "        console.log(\"房间ID已保存:\", jsonData.data.id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": 1,\n  \"name\": \"测试房间-{{$randomInt}}\"\n  \"area\": 15.5,\n  \"occupantId\": null,\n  \"hasAirConditioner\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms"]
+            },
+            "description": "在指定住户下创建新房间"
+          }
+        },
+        {
+          "name": "3.2 获取房间列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms?householdId=1&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "1",
+                  "description": "住户ID（必填）"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "keyword",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "按住户ID查询房间列表"
+          }
+        },
+        {
+          "name": "3.3 获取房间详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "1"]
+            },
+            "description": "根据ID获取房间详细信息"
+          }
+        },
+        {
+          "name": "3.4 更新房间信息",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新后的房间名称\",\n  \"area\": 18.0,\n  \"hasAirConditioner\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomId}}"]
+            },
+            "description": "更新房间的各项属性"
+          }
+        },
+        {
+          "name": "3.5 删除房间",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/rooms/{{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rooms", "{{roomId}}"]
+            },
+            "description": "删除指定房间（会级联删除关联的账单明细）"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. MeterReading 电表读数",
+      "item": [
+        {
+          "name": "4.1 录入电表读数",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"录入电表读数成功\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"readingId\", jsonData.data.id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": 1,\n  \"readingDate\": \"2026-06-01\",\n  \"totalKwh\": 2680.0,\n  \"amount\": 1608.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meterreadings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "meterreadings"]
+            },
+            "description": "录入新的电表读数记录"
+          }
+        },
+        {
+          "name": "4.2 获取电表读数列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meterreadings?householdId=1&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "meterreadings"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "1",
+                  "description": "住户ID（必填）"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "按住户查询电表读数历史记录"
+          }
+        },
+        {
+          "name": "4.3 获取读数详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meterreadings/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "meterreadings", "1"]
+            }
+          }
+        },
+        {
+          "name": "4.4 更新读数",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"readingDate\": \"2026-06-01\",\n  \"totalKwh\": 2700.0,\n  \"amount\": 1620.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/meterreadings/{{readingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "meterreadings", "{{readingId}}"]
+            }
+          }
+        },
+        {
+          "name": "4.5 删除读数",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meterreadings/{{readingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "meterreadings", "{{readingId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Bill 账单管理",
+      "item": [
+        {
+          "name": "5.1 创建账单",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"创建账单成功\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"billId\", jsonData.data.id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"householdId\": 1,\n  \"periodStart\": \"2026-05-01\",\n  \"periodEnd\": \"2026-05-31\",\n  \"totalAmount\": 1428.00,\n  \"status\": \"Draft\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills"]
+            },
+            "description": "创建新的月度账单（系统自动计算各房间分摊）"
+          }
+        },
+        {
+          "name": "5.2 获取账单列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills?householdId=1&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills"],
+              "query": [
+                {
+                  "key": "householdId",
+                  "value": "1",
+                  "description": "住户ID（必填）"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Draft / Sent / Paid"
+                },
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.3 获取账单详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills", "1"]
+            }
+          }
+        },
+        {
+          "name": "5.4 更新账单",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"periodStart\": \"2026-05-01\",\n  \"periodEnd\": \"2026-05-31\",\n  \"totalAmount\": 1500.00,\n  \"status\": \"Draft\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/{{billId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills", "{{billId}}"]
+            }
+          }
+        },
+        {
+          "name": "5.5 更新账单状态",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Sent\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/{{billId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills", "{{billId}}", "status"]
+            },
+            "description": "更新账单状态：Draft → Sent → Paid"
+          }
+        },
+        {
+          "name": "5.6 删除账单",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/bills/{{billId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bills", "{{billId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. BillItem 账单明细",
+      "item": [
+        {
+          "name": "6.1 查询账单明细列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/billitems?billId=1&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "billitems"],
+              "query": [
+                {
+                  "key": "billId",
+                  "value": "1",
+                  "description": "按账单ID查询"
+                },
+                {
+                  "key": "roomId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "按房间ID查询"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.2 获取明细详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/billitems/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "billitems", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Stats 数据统计",
+      "item": [
+        {
+          "name": "7.1 概览统计",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "overview"]
+            },
+            "description": "获取住户数、房间数、账单数、总金额等统计概览"
+          }
+        },
+        {
+          "name": "7.2 趋势分析",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/trend",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "trend"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "获取月度用电量和电费趋势数据"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. System 系统接口",
+      "item": [
+        {
+          "name": "8.1 健康检查",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "系统健康检查端点（无需认证）"
+          }
+        },
+        {
+          "name": "8.2 Swagger API文档",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["v3", "api-docs"]
+            },
+            "description": "OpenAPI JSON 规范文档"
+          }
+        }
+      ]
+    }
+  ]
+}

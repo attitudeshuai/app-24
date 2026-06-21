@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    container_name: electricitysplit_app
+    ports:
+      - "8094:8094"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=electricitysplit
+      - DB_USER=app_user
+      - DB_PASSWORD=app_pass
+      - JWT_SECRET=electricitysplit-secret-key-for-jwt-token-generation-please-change-in-production
+    depends_on:
+      mysql:
+        condition: service_healthy
+  mysql:
+    image: mysql:8.0
+    container_name: electricitysplit_mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_pass
+      - MYSQL_DATABASE=electricitysplit
+      - MYSQL_USER=app_user
+      - MYSQL_PASSWORD=app_pass
+    ports:
+      - "13319:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp_user", "-papp_pass"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+volumes:
+  mysql_data:
