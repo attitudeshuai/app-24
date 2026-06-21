@@ -93,6 +93,31 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void notifyBillOverdue(Bill bill, List<BillItem> items) {
+        for (BillItem item : items) {
+            if (Boolean.FALSE.equals(item.getIsPaid())) {
+                User occupant = item.getRoom().getOccupant();
+                if (occupant != null) {
+                    String title = "账单已逾期：" + buildBillTitle(bill);
+                    String content = "您有一笔电费账单已逾期，请尽快缴纳，避免产生额外影响。\n" + buildBillContent(bill, item);
+
+                    Notification notification = Notification.builder()
+                            .user(occupant)
+                            .bill(bill)
+                            .billItem(item)
+                            .type(Notification.NotificationType.BILL_OVERDUE)
+                            .title(title)
+                            .content(content)
+                            .isRead(false)
+                            .build();
+
+                    notificationRepository.save(notification);
+                }
+            }
+        }
+    }
+
     public Page<Notification> getUserNotifications(User user, Pageable pageable) {
         return notificationRepository.findByUserId(user.getId(), pageable);
     }

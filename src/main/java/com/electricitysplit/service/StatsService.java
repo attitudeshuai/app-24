@@ -2,6 +2,7 @@ package com.electricitysplit.service;
 
 import com.electricitysplit.dto.StatsDto;
 import com.electricitysplit.entity.Bill;
+import com.electricitysplit.entity.BillStatus;
 import com.electricitysplit.entity.Household;
 import com.electricitysplit.entity.Room;
 import com.electricitysplit.entity.User;
@@ -45,7 +46,7 @@ public class StatsService {
         }
 
         long totalBills = allBills.size();
-        long paidBills = allBills.stream().filter(b -> b.getStatus() == Bill.BillStatus.Paid).count();
+        long paidBills = allBills.stream().filter(b -> b.getStatus() == BillStatus.PAID).count();
         long pendingBills = totalBills - paidBills;
 
         BigDecimal totalAmount = allBills.stream()

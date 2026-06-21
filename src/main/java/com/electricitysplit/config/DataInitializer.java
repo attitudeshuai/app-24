@@ -62,30 +62,30 @@ public class DataInitializer implements CommandLineRunner {
         createMeterReading(h2, LocalDate.of(2026, 4, 1), new BigDecimal("1750.0"), new BigDecimal("1050.00"));
 
         Bill b1 = createBill(h1, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31),
-                new BigDecimal("948.00"), Bill.BillStatus.Paid);
+                new BigDecimal("948.00"), BillStatus.PAID);
         createBillItem(b1, r1, new BigDecimal("250.00"), new BigDecimal("120.00"), new BigDecimal("80.00"), true);
         createBillItem(b1, r2, new BigDecimal("180.00"), new BigDecimal("30.00"), new BigDecimal("80.00"), true);
         createBillItem(b1, r3, new BigDecimal("120.00"), new BigDecimal("50.00"), new BigDecimal("38.00"), false);
 
         Bill b2 = createBill(h1, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28),
-                new BigDecimal("1092.00"), Bill.BillStatus.Sent);
+                new BigDecimal("1092.00"), BillStatus.PENDING_PAYMENT);
         createBillItem(b2, r1, new BigDecimal("280.00"), new BigDecimal("150.00"), new BigDecimal("90.00"), true);
         createBillItem(b2, r2, new BigDecimal("200.00"), new BigDecimal("40.00"), new BigDecimal("90.00"), false);
         createBillItem(b2, r3, new BigDecimal("140.00"), new BigDecimal("60.00"), new BigDecimal("42.00"), false);
 
         Bill b3 = createBill(h1, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31),
-                new BigDecimal("1230.00"), Bill.BillStatus.Draft);
+                new BigDecimal("1230.00"), BillStatus.PENDING_CONFIRMATION);
         createBillItem(b3, r1, new BigDecimal("300.00"), new BigDecimal("180.00"), new BigDecimal("100.00"), false);
         createBillItem(b3, r2, new BigDecimal("220.00"), new BigDecimal("50.00"), new BigDecimal("100.00"), false);
         createBillItem(b3, r3, new BigDecimal("150.00"), new BigDecimal("80.00"), new BigDecimal("50.00"), false);
 
         Bill b4 = createBill(h2, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31),
-                new BigDecimal("756.00"), Bill.BillStatus.Paid);
+                new BigDecimal("756.00"), BillStatus.PAID);
         createBillItem(b4, r4, new BigDecimal("300.00"), new BigDecimal("100.00"), new BigDecimal("60.00"), true);
         createBillItem(b4, r5, new BigDecimal("180.00"), new BigDecimal("40.00"), new BigDecimal("76.00"), true);
 
         Bill b5 = createBill(h2, LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28),
-                new BigDecimal("912.00"), Bill.BillStatus.Sent);
+                new BigDecimal("912.00"), BillStatus.PENDING_PAYMENT);
         createBillItem(b5, r4, new BigDecimal("340.00"), new BigDecimal("130.00"), new BigDecimal("70.00"), false);
         createBillItem(b5, r5, new BigDecimal("200.00"), new BigDecimal("50.00"), new BigDecimal("122.00"), false);
 
@@ -135,7 +135,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private Bill createBill(Household household, LocalDate periodStart, LocalDate periodEnd,
-                            BigDecimal totalAmount, Bill.BillStatus status) {
+                            BigDecimal totalAmount, BillStatus status) {
         Bill bill = Bill.builder()
                 .household(household)
                 .periodStart(periodStart)

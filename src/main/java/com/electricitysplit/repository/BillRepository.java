@@ -1,9 +1,11 @@
 package com.electricitysplit.repository;
 
 import com.electricitysplit.entity.Bill;
+import com.electricitysplit.entity.BillStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -19,7 +21,7 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     List<Bill> findByHouseholdIdOrderByPeriodEndDesc(Long householdId);
 
-    Page<Bill> findByHouseholdIdAndStatus(Long householdId, Bill.BillStatus status, Pageable pageable);
+    Page<Bill> findByHouseholdIdAndStatus(Long householdId, BillStatus status, Pageable pageable);
 
     @Query("SELECT b FROM Bill b WHERE b.household.id = :householdId AND " +
            "b.periodEnd BETWEEN :startDate AND :endDate")
@@ -38,8 +40,24 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     long countByUserId(@Param("userId") Long userId);
 
     @Query("SELECT COUNT(b) FROM Bill b WHERE b.household.createdBy.id = :userId AND b.status = :status")
-    long countByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Bill.BillStatus status);
+    long countByUserIdAndStatus(@Param("userId") Long userId, @Param("status") BillStatus status);
 
     @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Bill b WHERE b.household.createdBy.id = :userId")
     java.math.BigDecimal sumTotalAmountByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT b FROM Bill b WHERE b.status = :status AND (b.dueDate IS NULL OR b.dueDate < :cutoffDate)")
+    List<Bill> findOverdueCandidates(@Param("status") BillStatus status, @Param("cutoffDate") LocalDate cutoffDate);
+
+    @Query("SELECT b FROM Bill b WHERE b.status = :status AND b.periodEnd < :cutoffDate AND b.dueDate IS NULL")
+    List<Bill> findBillsWithoutDueDate(@Param("status") BillStatus status, @Param("cutoffDate") LocalDate cutoffDate);
+
+    @Query("SELECT b FROM Bill b WHERE b.status IN :statuses AND b.household.createdBy.id = :userId")
+    List<Bill> findByUserIdAndStatusIn(@Param("userId") Long userId, @Param("statuses") List<BillStatus> statuses);
+
+    @Modifying
+    @Query("UPDATE Bill b SET b.ruleVersion = :ruleVersion WHERE b.ruleVersion IS NULL")
+    int migrateNullRuleVersion(@Param("ruleVersion") String ruleVersion);
+
+    @Query("SELECT COUNT(b) FROM Bill b WHERE b.ruleVersion IS NULL OR b.ruleVersion != :currentVersion")
+    long countBillsWithDifferentRuleVersion(@Param("currentVersion") String currentVersion);
 }

@@ -70,7 +70,7 @@ class BillSplitServiceTest {
                 .periodStart(LocalDate.of(2024, 1, 1))
                 .periodEnd(LocalDate.of(2024, 1, 31))
                 .totalAmount(new BigDecimal("300.00"))
-                .status(Bill.BillStatus.Draft)
+                .status(BillStatus.PENDING_CONFIRMATION)
                 .build();
 
         Room room1 = Room.builder()
