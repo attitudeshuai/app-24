@@ -39,6 +39,9 @@ public class Room {
     @Column(name = "has_air_conditioner")
     private Boolean hasAirConditioner;
 
+    @Column(name = "head_count")
+    private Integer headCount;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

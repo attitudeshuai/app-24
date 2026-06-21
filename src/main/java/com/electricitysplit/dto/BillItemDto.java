@@ -60,5 +60,10 @@ public class BillItemDto {
         private BigDecimal totalDue;
         private Boolean isPaid;
         private LocalDateTime paidAt;
+        private Boolean isPublicArea;
+        private String allocationType;
+        private String calculationDetails;
+        private Boolean hasRoundingAdjustment;
+        private BigDecimal roundingAdjustmentAmount;
     }
 }

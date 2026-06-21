@@ -26,6 +26,8 @@ public class BillService {
     private final BillRepository billRepository;
     private final BillItemRepository billItemRepository;
     private final HouseholdService householdService;
+    private final BillSplitService billSplitService;
+    private final NotificationService notificationService;
 
     @Transactional
     public BillDto.Response create(User user, BillDto.CreateRequest request) {
@@ -42,6 +44,14 @@ public class BillService {
                 .build();
 
         Bill saved = billRepository.save(bill);
+
+        if (Boolean.TRUE.equals(request.getAutoSplit())) {
+            var items = billSplitService.splitBill(saved, request.getMeterReadingId());
+            if (status == Bill.BillStatus.Sent) {
+                notificationService.notifyBillCreated(saved, items);
+            }
+        }
+
         return toResponse(saved);
     }
 
@@ -143,6 +153,11 @@ public class BillService {
                 .totalDue(item.getTotalDue())
                 .isPaid(item.getIsPaid())
                 .paidAt(item.getPaidAt())
+                .isPublicArea(item.getIsPublicArea())
+                .allocationType(item.getAllocationType())
+                .calculationDetails(item.getCalculationDetails())
+                .hasRoundingAdjustment(item.getHasRoundingAdjustment())
+                .roundingAdjustmentAmount(item.getRoundingAdjustmentAmount())
                 .build();
     }
 }

@@ -30,6 +30,8 @@ public class RoomDto {
         private Long occupantId;
 
         private Boolean hasAirConditioner;
+
+        private Integer headCount;
     }
 
     @Data
@@ -45,6 +47,8 @@ public class RoomDto {
         private Long occupantId;
 
         private Boolean hasAirConditioner;
+
+        private Integer headCount;
     }
 
     @Data
@@ -60,6 +64,9 @@ public class RoomDto {
         private Long occupantId;
         private String occupantUsername;
         private Boolean hasAirConditioner;
+
+        private Integer headCount;
+
         private LocalDateTime createdAt;
     }
 }

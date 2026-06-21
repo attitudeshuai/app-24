@@ -32,6 +32,10 @@ public class BillDto {
         private BigDecimal totalAmount;
 
         private Bill.BillStatus status;
+
+        private Long meterReadingId;
+
+        private Boolean autoSplit;
     }
 
     @Data

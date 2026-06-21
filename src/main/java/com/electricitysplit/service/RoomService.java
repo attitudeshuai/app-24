@@ -37,6 +37,7 @@ public class RoomService {
                 .area(request.getArea())
                 .occupant(occupant)
                 .hasAirConditioner(request.getHasAirConditioner())
+                .headCount(request.getHeadCount())
                 .build();
 
         Room saved = roomRepository.save(room);
@@ -94,6 +95,9 @@ public class RoomService {
         if (request.getHasAirConditioner() != null) {
             room.setHasAirConditioner(request.getHasAirConditioner());
         }
+        if (request.getHeadCount() != null) {
+            room.setHeadCount(request.getHeadCount());
+        }
 
         Room saved = roomRepository.save(room);
         return toResponse(saved);
@@ -115,6 +119,7 @@ public class RoomService {
                 .occupantId(room.getOccupant() != null ? room.getOccupant().getId() : null)
                 .occupantUsername(room.getOccupant() != null ? room.getOccupant().getUsername() : null)
                 .hasAirConditioner(room.getHasAirConditioner())
+                .headCount(room.getHeadCount())
                 .createdAt(room.getCreatedAt())
                 .build();
     }

@@ -46,4 +46,19 @@ public class BillItem {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    @Column(name = "is_public_area", nullable = false)
+    private Boolean isPublicArea;
+
+    @Column(name = "allocation_type", length = 30)
+    private String allocationType;
+
+    @Column(name = "calculation_details", length = 1000)
+    private String calculationDetails;
+
+    @Column(name = "has_rounding_adjustment", nullable = false)
+    private Boolean hasRoundingAdjustment;
+
+    @Column(name = "rounding_adjustment_amount", precision = 12, scale = 2)
+    private BigDecimal roundingAdjustmentAmount;
 }
