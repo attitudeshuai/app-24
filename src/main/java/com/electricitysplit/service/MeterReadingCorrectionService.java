@@ -191,30 +191,49 @@ public class MeterReadingCorrectionService {
         BigDecimal newTotalKwh = correction.getNewTotalKwh();
         BigDecimal originalAmount = correction.getOriginalAmount();
         BigDecimal newAmount = correction.getNewAmount();
+        Long originalReadingId = correction.getOriginalReading() != null
+                ? correction.getOriginalReading().getId() : null;
 
-        Optional<MeterReading> prevReadingOpt = meterReadingRepository
-                .findLatestByHouseholdIdAndDateBefore(householdId, correctionDate, Long.MIN_VALUE);
-        Optional<MeterReading> nextReadingOpt = meterReadingRepository
-                .findEarliestByHouseholdIdAndDateAfter(householdId, correctionDate);
+        List<MeterReading> readingsAsc = meterReadingRepository
+                .findByHouseholdIdOrderByReadingDateDesc(householdId);
+        Collections.reverse(readingsAsc);
+
+        MeterReading prevReading = null;
+        MeterReading nextReading = null;
+        for (int i = 0; i < readingsAsc.size(); i++) {
+            MeterReading r = readingsAsc.get(i);
+            boolean isTarget = (originalReadingId != null && r.getId().equals(originalReadingId))
+                    || (originalReadingId == null && r.getReadingDate().equals(correctionDate));
+            if (isTarget) {
+                if (i > 0) prevReading = readingsAsc.get(i - 1);
+                if (i < readingsAsc.size() - 1) nextReading = readingsAsc.get(i + 1);
+                break;
+            }
+            if (originalReadingId == null && r.getReadingDate().isBefore(correctionDate)) {
+                prevReading = r;
+            }
+            if (originalReadingId == null && r.getReadingDate().isAfter(correctionDate) && nextReading == null) {
+                nextReading = r;
+            }
+        }
 
         BigDecimal unitPrice = BigDecimal.ZERO;
-        if (prevReadingOpt.isPresent() && originalAmount != null
+        if (prevReading != null && originalAmount != null
                 && originalAmount.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal originalUsage = originalTotalKwh.subtract(prevReadingOpt.get().getTotalKwh());
+            BigDecimal originalUsage = originalTotalKwh.subtract(prevReading.getTotalKwh());
             if (originalUsage.compareTo(BigDecimal.ZERO) > 0) {
                 unitPrice = originalAmount.divide(originalUsage, 6, java.math.RoundingMode.HALF_UP);
             }
         }
 
-        MeterReading originalReading = correction.getOriginalReading();
         BigDecimal calculatedNewAmount = newAmount;
-        if (calculatedNewAmount == null && unitPrice.compareTo(BigDecimal.ZERO) > 0
-                && prevReadingOpt.isPresent()) {
-            BigDecimal newUsage = newTotalKwh.subtract(prevReadingOpt.get().getTotalKwh());
+        if (calculatedNewAmount == null && unitPrice.compareTo(BigDecimal.ZERO) > 0 && prevReading != null) {
+            BigDecimal newUsage = newTotalKwh.subtract(prevReading.getTotalKwh());
             calculatedNewAmount = newUsage.multiply(unitPrice).setScale(2, java.math.RoundingMode.HALF_UP);
             correction.setNewAmount(calculatedNewAmount);
         }
 
+        MeterReading originalReading = correction.getOriginalReading();
         if (originalReading != null) {
             originalReading.setTotalKwh(newTotalKwh);
             if (calculatedNewAmount != null) {
@@ -237,55 +256,41 @@ public class MeterReadingCorrectionService {
         correction.setExecutedAt(LocalDateTime.now());
 
         MeterReadingCorrectionDto.RecalculationResult recalcResult = recalculateAffectedBills(
-                correction, approver, unitPrice, prevReadingOpt.orElse(null), nextReadingOpt.orElse(null));
+                correction, approver, unitPrice);
         correction.setBillsRecalculated(true);
         correction.setRecalculationNote(recalcResult.getNote());
     }
 
     @Transactional
     protected MeterReadingCorrectionDto.RecalculationResult recalculateAffectedBills(
-            MeterReadingCorrection correction, User operator, BigDecimal unitPrice,
-            MeterReading prevReading, MeterReading nextReading) {
+            MeterReadingCorrection correction, User operator, BigDecimal unitPrice) {
         Long householdId = correction.getHousehold().getId();
+
+        List<MeterReading> readingsAsc = meterReadingRepository
+                .findByHouseholdIdOrderByReadingDateDesc(householdId);
+        Collections.reverse(readingsAsc);
+
+        Long correctedReadingId = correction.getNewReading() != null
+                ? correction.getNewReading().getId() : null;
         LocalDate correctionDate = correction.getReadingDate();
-        BigDecimal newTotalKwh = correction.getNewTotalKwh();
 
         List<Bill> allBills = billRepository.findByHouseholdIdOrderByPeriodEndDesc(householdId);
         Collections.reverse(allBills);
 
         List<Bill> affectedBills = new ArrayList<>();
         for (Bill bill : allBills) {
-            LocalDate periodStart = bill.getPeriodStart();
-            LocalDate periodEnd = bill.getPeriodEnd();
+            MeterReading periodStartReading = findPeriodStartReading(readingsAsc, bill.getPeriodStart());
+            MeterReading periodEndReading = findPeriodEndReading(readingsAsc, bill.getPeriodEnd());
 
-            boolean isCurrentPeriodBill = prevReading != null
-                    && !periodEnd.isBefore(prevReading.getReadingDate())
-                    && periodEnd.isBefore(nextReading != null ? nextReading.getReadingDate() : correctionDate.plusYears(1));
+            if (periodStartReading == null || periodEndReading == null) {
+                continue;
+            }
 
-            boolean isNextPeriodBill = nextReading != null
-                    && !periodEnd.isBefore(correctionDate)
-                    && periodEnd.isBefore(nextReading.getReadingDate().plusDays(1));
+            boolean startIsCorrected = isCorrectedReading(periodStartReading, correctedReadingId, correctionDate);
+            boolean endIsCorrected = isCorrectedReading(periodEndReading, correctedReadingId, correctionDate);
 
-            if (isCurrentPeriodBill || isNextPeriodBill) {
+            if (startIsCorrected || endIsCorrected) {
                 affectedBills.add(bill);
-            }
-        }
-
-        if (affectedBills.isEmpty() && !allBills.isEmpty()) {
-            for (Bill bill : allBills) {
-                if (!bill.getPeriodEnd().isBefore(correctionDate.minusMonths(1))) {
-                    affectedBills.add(bill);
-                    break;
-                }
-            }
-            if (nextReading != null) {
-                for (Bill bill : allBills) {
-                    if (!bill.getPeriodStart().isBefore(correctionDate)
-                            && !affectedBills.contains(bill)) {
-                        affectedBills.add(bill);
-                        break;
-                    }
-                }
             }
         }
 
@@ -299,9 +304,13 @@ public class MeterReadingCorrectionService {
 
         for (Bill bill : affectedBills) {
             try {
-                if (unitPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    BigDecimal periodUsage = calculatePeriodUsage(bill, correction, prevReading, nextReading);
-                    if (periodUsage != null && periodUsage.compareTo(BigDecimal.ZERO) >= 0) {
+                MeterReading periodStartReading = findPeriodStartReading(readingsAsc, bill.getPeriodStart());
+                MeterReading periodEndReading = findPeriodEndReading(readingsAsc, bill.getPeriodEnd());
+
+                if (periodStartReading != null && periodEndReading != null
+                        && unitPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal periodUsage = periodEndReading.getTotalKwh().subtract(periodStartReading.getTotalKwh());
+                    if (periodUsage.compareTo(BigDecimal.ZERO) >= 0) {
                         BigDecimal periodAmount = periodUsage.multiply(unitPrice)
                                 .setScale(2, java.math.RoundingMode.HALF_UP);
                         bill.setTotalAmount(periodAmount);
@@ -335,12 +344,12 @@ public class MeterReadingCorrectionService {
 
         if (successCount > 0) {
             String amountUpdateNote = unitPrice.compareTo(BigDecimal.ZERO) > 0
-                    ? "已按各周期用电量和单价重新计算账单金额。"
+                    ? "已按各周期期初/期末读数与单价重新计算账单金额。"
                     : "";
             noteBuilder.insert(0, String.format("成功重新计算%d个账单(ID列表：%s)。%s",
                     successCount, recalculatedIds, amountUpdateNote));
         } else if (affectedBills.isEmpty()) {
-            noteBuilder.append("校正日期附近无关联账单，无需重新计算。");
+            noteBuilder.append("校正读数未关联任何账单的期初或期末，无需重新计算。");
         }
 
         return MeterReadingCorrectionDto.RecalculationResult.builder()
@@ -351,52 +360,32 @@ public class MeterReadingCorrectionService {
                 .build();
     }
 
-    private BigDecimal calculatePeriodUsage(Bill bill, MeterReadingCorrection correction,
-                                            MeterReading prevReading, MeterReading nextReading) {
-        LocalDate periodStart = bill.getPeriodStart();
-        LocalDate periodEnd = bill.getPeriodEnd();
-        BigDecimal newTotalKwh = correction.getNewTotalKwh();
-        LocalDate correctionDate = correction.getReadingDate();
-
-        BigDecimal startReading = null;
-        BigDecimal endReading = null;
-
-        if (prevReading != null && !periodStart.isBefore(prevReading.getReadingDate())) {
-            startReading = prevReading.getTotalKwh();
-        }
-
-        if (nextReading != null && !periodEnd.isAfter(nextReading.getReadingDate())) {
-            endReading = nextReading.getTotalKwh();
-        }
-
-        if (!correctionDate.isBefore(periodStart) && !correctionDate.isAfter(periodEnd.plusDays(1))) {
-            if (startReading == null && prevReading != null) {
-                startReading = prevReading.getTotalKwh();
-            }
-            if (endReading == null && nextReading != null) {
-                endReading = nextReading.getTotalKwh();
-            }
-            if (endReading == null) {
-                endReading = newTotalKwh;
+    private MeterReading findPeriodStartReading(List<MeterReading> readingsAsc, LocalDate periodStart) {
+        MeterReading result = null;
+        for (MeterReading r : readingsAsc) {
+            if (!r.getReadingDate().isAfter(periodStart)) {
+                result = r;
+            } else {
+                break;
             }
         }
+        return result;
+    }
 
-        if (startReading == null && prevReading != null
-                && periodStart.isAfter(prevReading.getReadingDate())
-                && periodStart.isBefore(correctionDate.plusDays(1))) {
-            startReading = prevReading.getTotalKwh();
+    private MeterReading findPeriodEndReading(List<MeterReading> readingsAsc, LocalDate periodEnd) {
+        for (MeterReading r : readingsAsc) {
+            if (r.getReadingDate().isAfter(periodEnd)) {
+                return r;
+            }
         }
-        if (endReading == null && nextReading != null
-                && periodEnd.isBefore(nextReading.getReadingDate().plusDays(1))
-                && periodEnd.isAfter(correctionDate.minusDays(1))) {
-            endReading = nextReading.getTotalKwh();
-        }
-
-        if (startReading != null && endReading != null) {
-            return endReading.subtract(startReading);
-        }
-
         return null;
+    }
+
+    private boolean isCorrectedReading(MeterReading reading, Long correctedReadingId, LocalDate correctionDate) {
+        if (correctedReadingId != null && reading.getId().equals(correctedReadingId)) {
+            return true;
+        }
+        return reading.getReadingDate().equals(correctionDate);
     }
 
     @Transactional
