@@ -45,4 +45,9 @@ public interface MeterReadingRepository extends JpaRepository<MeterReading, Long
     Optional<MeterReading> findLatestByHouseholdIdExcludeId(
             @Param("householdId") Long householdId,
             @Param("excludeId") Long excludeId);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId AND m.readingDate > :readingDate ORDER BY m.readingDate ASC, m.id ASC LIMIT 1")
+    Optional<MeterReading> findEarliestByHouseholdIdAndDateAfter(
+            @Param("householdId") Long householdId,
+            @Param("readingDate") LocalDate readingDate);
 }
