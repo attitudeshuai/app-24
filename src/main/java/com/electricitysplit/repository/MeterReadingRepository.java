@@ -31,4 +31,18 @@ public interface MeterReadingRepository extends JpaRepository<MeterReading, Long
 
     @Query("SELECT COUNT(m) > 0 FROM MeterReading m WHERE m.id = :id AND m.household.createdBy.id = :userId")
     boolean existsByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId ORDER BY m.readingDate DESC, m.id DESC LIMIT 1")
+    Optional<MeterReading> findLatestByHouseholdId(@Param("householdId") Long householdId);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId AND m.readingDate <= :readingDate AND m.id != :excludeId ORDER BY m.readingDate DESC, m.id DESC LIMIT 1")
+    Optional<MeterReading> findLatestByHouseholdIdAndDateBefore(
+            @Param("householdId") Long householdId,
+            @Param("readingDate") LocalDate readingDate,
+            @Param("excludeId") Long excludeId);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId AND m.id != :excludeId ORDER BY m.readingDate DESC, m.id DESC LIMIT 1")
+    Optional<MeterReading> findLatestByHouseholdIdExcludeId(
+            @Param("householdId") Long householdId,
+            @Param("excludeId") Long excludeId);
 }
