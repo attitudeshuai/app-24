@@ -45,4 +45,24 @@ public class Room {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by")
+    private User deletedBy;
+
+    @Column(name = "delete_reason", length = 500)
+    private String deleteReason;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.isDeleted == null) {
+            this.isDeleted = false;
+        }
+    }
 }

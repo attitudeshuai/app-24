@@ -60,4 +60,20 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     @Query("SELECT COUNT(b) FROM Bill b WHERE b.ruleVersion IS NULL OR b.ruleVersion != :currentVersion")
     long countBillsWithDifferentRuleVersion(@Param("currentVersion") String currentVersion);
+
+    @Query("SELECT DISTINCT b FROM Bill b JOIN BillItem bi ON b.id = bi.bill.id " +
+           "WHERE bi.room.id = :roomId AND b.status != :status AND b.household.createdBy.id = :userId")
+    List<Bill> findUnpaidBillsByRoomId(@Param("roomId") Long roomId,
+                                       @Param("status") BillStatus status,
+                                       @Param("userId") Long userId);
+
+    @Query("SELECT COUNT(DISTINCT b) FROM Bill b JOIN BillItem bi ON b.id = bi.bill.id " +
+           "WHERE bi.room.id = :roomId AND b.status != :status AND b.household.createdBy.id = :userId")
+    long countUnpaidBillsByRoomId(@Param("roomId") Long roomId,
+                                  @Param("status") BillStatus status,
+                                  @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT b FROM Bill b JOIN BillItem bi ON b.id = bi.bill.id " +
+           "WHERE bi.room.id = :roomId AND b.household.createdBy.id = :userId ORDER BY b.periodEnd DESC")
+    List<Bill> findAllBillsByRoomId(@Param("roomId") Long roomId, @Param("userId") Long userId);
 }

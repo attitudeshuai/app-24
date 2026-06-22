@@ -66,4 +66,7 @@ public interface PaymentRecordRepository extends JpaRepository<PaymentRecord, Lo
             @Param("status") PaymentStatus status);
 
     boolean existsByTransactionNo(String transactionNo);
+
+    @Query("SELECT pr FROM PaymentRecord pr WHERE pr.billItem.room.id = :roomId AND pr.bill.household.createdBy.id = :userId ORDER BY pr.paymentTime DESC")
+    List<PaymentRecord> findByRoomId(@Param("roomId") Long roomId, @Param("userId") Long userId);
 }
