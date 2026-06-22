@@ -50,4 +50,16 @@ public interface MeterReadingRepository extends JpaRepository<MeterReading, Long
     Optional<MeterReading> findEarliestByHouseholdIdAndDateAfter(
             @Param("householdId") Long householdId,
             @Param("readingDate") LocalDate readingDate);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId AND " +
+           "m.readingDate BETWEEN :startDate AND :endDate ORDER BY m.readingDate DESC")
+    List<MeterReading> findByHouseholdIdAndDateRange(@Param("householdId") Long householdId,
+                                                      @Param("startDate") LocalDate startDate,
+                                                      @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT m FROM MeterReading m WHERE m.household.id = :householdId AND m.readingDate <= :date " +
+           "ORDER BY m.readingDate DESC")
+    List<MeterReading> findLatestByHouseholdIdAndDate(@Param("householdId") Long householdId,
+                                                       @Param("date") LocalDate date,
+                                                       Pageable pageable);
 }

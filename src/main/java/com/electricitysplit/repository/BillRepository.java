@@ -76,4 +76,16 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
     @Query("SELECT DISTINCT b FROM Bill b JOIN BillItem bi ON b.id = bi.bill.id " +
            "WHERE bi.room.id = :roomId AND b.household.createdBy.id = :userId ORDER BY b.periodEnd DESC")
     List<Bill> findAllBillsByRoomId(@Param("roomId") Long roomId, @Param("userId") Long userId);
+
+    @Query("SELECT COUNT(b) > 0 FROM Bill b WHERE b.household.id = :householdId AND " +
+           "b.periodStart = :periodStart AND b.periodEnd = :periodEnd")
+    boolean existsByHouseholdIdAndPeriod(@Param("householdId") Long householdId,
+                                          @Param("periodStart") LocalDate periodStart,
+                                          @Param("periodEnd") LocalDate periodEnd);
+
+    @Query("SELECT b FROM Bill b WHERE b.household.id = :householdId AND b.periodEnd <= :periodEnd " +
+           "ORDER BY b.periodEnd DESC")
+    List<Bill> findRecentBillsByHouseholdId(@Param("householdId") Long householdId,
+                                             @Param("periodEnd") LocalDate periodEnd,
+                                             Pageable pageable);
 }
