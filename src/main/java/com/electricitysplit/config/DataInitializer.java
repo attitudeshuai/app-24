@@ -36,10 +36,11 @@ public class DataInitializer implements CommandLineRunner {
 
         log.info("Starting seed data initialization...");
 
-        User user1 = createUser("zhangsan", "zhangsan@example.com", "张三头像");
-        User user2 = createUser("lisi", "lisi@example.com", "李四头像");
-        User user3 = createUser("wangwu", "wangwu@example.com", "王五头像");
-        User user4 = createUser("zhaoliu", "zhaoliu@example.com", "赵六头像");
+        User user1 = createUser("zhangsan", "zhangsan@example.com", "张三头像", Role.ROLE_USER);
+        User user2 = createUser("lisi", "lisi@example.com", "李四头像", Role.ROLE_USER);
+        User user3 = createUser("wangwu", "wangwu@example.com", "王五头像", Role.ROLE_USER);
+        User user4 = createUser("zhaoliu", "zhaoliu@example.com", "赵六头像", Role.ROLE_USER);
+        User admin = createUser("admin", "admin@example.com", "管理员头像", Role.ROLE_ADMIN);
 
         Household h1 = createHousehold("阳光花园3栋2单元", "北京市朝阳区阳光花园3栋2单元501", user1);
         Household h2 = createHousehold("幸福里小区", "上海市浦东新区幸福里小区8号楼302", user2);
@@ -90,16 +91,18 @@ public class DataInitializer implements CommandLineRunner {
         createBillItem(b5, r5, new BigDecimal("200.00"), new BigDecimal("50.00"), new BigDecimal("122.00"), false);
 
         log.info("Seed data initialization completed successfully!");
-        log.info("Created 4 users, 2 households, 5 rooms, 9 meter readings, 5 bills, and 13 bill items.");
+        log.info("Created 5 users (4 regular + 1 admin), 2 households, 5 rooms, 9 meter readings, 5 bills, and 13 bill items.");
         log.info("Default test accounts: zhangsan/lisi/wangwu/zhaoliu, password: 123456");
+        log.info("Default admin account: admin, password: 123456");
     }
 
-    private User createUser(String username, String email, String avatar) {
+    private User createUser(String username, String email, String avatar, Role role) {
         User user = User.builder()
                 .username(username)
                 .email(email)
                 .passwordHash(passwordEncoder.encode("123456"))
                 .avatar(avatar)
+                .role(role)
                 .build();
         return userRepository.save(user);
     }

@@ -121,15 +121,25 @@ public class MeterReadingCorrectionService {
     }
 
     public Page<MeterReadingCorrectionDto.Response> listPendingApprovals(User user, Pageable pageable) {
+        checkAdminPermission(user);
         Page<MeterReadingCorrection> page = correctionRepository.findByStatus(
                 MeterReadingCorrectionStatus.PENDING_APPROVAL, pageable);
         return page.map(this::toResponse);
     }
 
+    private void checkAdminPermission(User user) {
+        if (user == null || user.getRole() != Role.ROLE_ADMIN) {
+            throw new BusinessException("无权限执行此操作，需要管理员角色");
+        }
+    }
+
     @Transactional
     public MeterReadingCorrectionDto.Response approveCorrection(User approver, Long correctionId,
                                                                   MeterReadingCorrectionDto.ApprovalRequest request) {
-        MeterReadingCorrection correction = getEntityByIdAndCheckPermission(approver, correctionId);
+        checkAdminPermission(approver);
+
+        MeterReadingCorrection correction = correctionRepository.findById(correctionId)
+                .orElseThrow(() -> new BusinessException("校正记录不存在"));
 
         if (correction.getStatus() != MeterReadingCorrectionStatus.PENDING_APPROVAL) {
             throw new BusinessException("仅待审批状态的校正记录可以审批，当前状态：" + correction.getStatus());
@@ -206,6 +216,7 @@ public class MeterReadingCorrectionService {
             MeterReadingCorrection correction, User operator) {
         LocalDate correctionDate = correction.getReadingDate();
         Long householdId = correction.getHousehold().getId();
+        BigDecimal newAmount = correction.getNewAmount();
 
         List<Bill> affectedBills = billRepository.findByHouseholdIdOrderByPeriodEndDesc(householdId)
                 .stream()
@@ -220,6 +231,11 @@ public class MeterReadingCorrectionService {
 
         for (Bill bill : affectedBills) {
             try {
+                if (newAmount != null && newAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    bill.setTotalAmount(newAmount);
+                    billRepository.save(bill);
+                }
+
                 List<BillItem> oldItems = billItemRepository.findByBillId(bill.getId());
                 billItemRepository.deleteAll(oldItems);
 
@@ -232,7 +248,7 @@ public class MeterReadingCorrectionService {
                         .toStatus(bill.getStatus())
                         .operator(operator)
                         .operatorName(operator.getUsername())
-                        .reason("电表读数校正(ID=" + correction.getId() + ")触发账单明细重新计算")
+                        .reason("电表读数校正(ID=" + correction.getId() + ")触发账单总金额及明细重新计算")
                         .ruleVersion(bill.getRuleVersion())
                         .isAuto(false)
                         .build());
@@ -245,8 +261,11 @@ public class MeterReadingCorrectionService {
         }
 
         if (successCount > 0) {
-            noteBuilder.insert(0, String.format("成功重新计算%d个账单(ID列表：%s)。",
-                    successCount, recalculatedIds));
+            String amountUpdateNote = (newAmount != null && newAmount.compareTo(BigDecimal.ZERO) > 0)
+                    ? String.format("账单总金额已同步更新为%.2f元。", newAmount)
+                    : "";
+            noteBuilder.insert(0, String.format("成功重新计算%d个账单(ID列表：%s)。%s",
+                    successCount, recalculatedIds, amountUpdateNote));
         } else if (affectedBills.isEmpty()) {
             noteBuilder.append("校正日期之后无关联账单，无需重新计算。");
         }

@@ -51,10 +51,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .orElseGet(() -> userRepository.findByEmail(username).orElse(null));
 
                 if (user != null && jwtUtil.validateToken(jwt, user.getUsername())) {
+                    java.util.List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority(user.getRole().name()));
+                    if (user.getRole() == com.electricitysplit.entity.Role.ROLE_ADMIN) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    }
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                            authorities
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
