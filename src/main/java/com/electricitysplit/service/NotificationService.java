@@ -134,6 +134,20 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void notifyReconciliationDiscrepancy(User user, String title, String content) {
+        if (user != null) {
+            Notification notification = Notification.builder()
+                    .user(user)
+                    .type(Notification.NotificationType.RECONCILIATION_DISCREPANCY)
+                    .title(title)
+                    .content(content)
+                    .isRead(false)
+                    .build();
+            notificationRepository.save(notification);
+        }
+    }
+
     public Page<Notification> getUserNotifications(User user, Pageable pageable) {
         return notificationRepository.findByUserId(user.getId(), pageable);
     }

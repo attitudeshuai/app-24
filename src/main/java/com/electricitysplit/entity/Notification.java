@@ -55,6 +55,7 @@ public class Notification {
         BILL_REMINDER,
         BILL_PAID,
         BILL_OVERDUE,
+        RECONCILIATION_DISCREPANCY,
         SYSTEM
     }
 }

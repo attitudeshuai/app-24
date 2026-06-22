@@ -23,7 +23,9 @@ public class BillStateMachineConfig {
                 BillStatus.PAID,
                 BillStatus.OVERDUE
         ));
-        v1Rules.put(BillStatus.PAID, EnumSet.noneOf(BillStatus.class));
+        v1Rules.put(BillStatus.PAID, EnumSet.of(
+                BillStatus.PENDING_PAYMENT
+        ));
         v1Rules.put(BillStatus.OVERDUE, EnumSet.of(
                 BillStatus.PAID
         ));
