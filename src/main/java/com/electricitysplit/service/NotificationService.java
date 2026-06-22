@@ -118,6 +118,22 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void notifyAdmin(Bill bill, String title, String content) {
+        User admin = bill.getHousehold().getCreatedBy();
+        if (admin != null) {
+            Notification notification = Notification.builder()
+                    .user(admin)
+                    .bill(bill)
+                    .type(Notification.NotificationType.SYSTEM)
+                    .title(title)
+                    .content(content)
+                    .isRead(false)
+                    .build();
+            notificationRepository.save(notification);
+        }
+    }
+
     public Page<Notification> getUserNotifications(User user, Pageable pageable) {
         return notificationRepository.findByUserId(user.getId(), pageable);
     }

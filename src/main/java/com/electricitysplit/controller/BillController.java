@@ -107,4 +107,10 @@ public class BillController {
         int migrated = billService.migrateHistoricalBills(currentUser);
         return ApiResponse.success("已迁移 " + migrated + " 条历史账单", migrated);
     }
+
+    @GetMapping("/{id}/amount-audit-logs")
+    public ApiResponse<List<BillDto.AmountAuditLogResponse>> getAmountAuditLogs(@PathVariable Long id) {
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ApiResponse.success(billService.getAmountAuditLogs(currentUser, id));
+    }
 }

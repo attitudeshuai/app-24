@@ -40,6 +40,9 @@ class BillSplitServiceTest {
     @Mock
     private BillItemRepository billItemRepository;
 
+    @Mock
+    private BillAmountValidationService amountValidationService;
+
     @InjectMocks
     private BillSplitService billSplitService;
 
@@ -102,6 +105,28 @@ class BillSplitServiceTest {
                 .build();
 
         rooms = Arrays.asList(room1, room2, room3);
+
+        lenient().when(amountValidationService.validateAndAdjust(any(Bill.class), anyList(), any()))
+                .thenAnswer(invocation -> {
+                    Bill billArg = invocation.getArgument(0);
+                    List<BillItem> items = invocation.getArgument(1);
+                    BigDecimal totalAmount = billArg.getTotalAmount();
+                    BigDecimal sum = items.stream()
+                            .map(BillItem::getTotalDue)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal difference = totalAmount.subtract(sum);
+                    if (difference.compareTo(BigDecimal.ZERO) != 0 && items.size() > 0) {
+                        BillItem lastItem = items.get(items.size() - 1);
+                        lastItem.setTotalDue(lastItem.getTotalDue().add(difference));
+                        lastItem.setHasRoundingAdjustment(true);
+                        lastItem.setRoundingAdjustmentAmount(difference);
+                        String details = lastItem.getCalculationDetails() != null ? lastItem.getCalculationDetails() : "";
+                        if (!details.contains("尾差调整")) {
+                            lastItem.setCalculationDetails(details + String.format("尾差调整：%+.2f元", difference));
+                        }
+                    }
+                    return items;
+                });
     }
 
     @Test

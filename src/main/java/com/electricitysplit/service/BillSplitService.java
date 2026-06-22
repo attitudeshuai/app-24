@@ -22,6 +22,7 @@ public class BillSplitService {
     private final RoomMeterReadingRepository roomMeterReadingRepository;
     private final MeterReadingRepository meterReadingRepository;
     private final BillItemRepository billItemRepository;
+    private final BillAmountValidationService amountValidationService;
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
@@ -99,11 +100,9 @@ public class BillSplitService {
             totalCalculated = totalCalculated.add(totalDue);
         }
 
-        handleRoundingDifference(items, totalAmount, totalCalculated, rooms);
+        List<BillItem> validatedItems = amountValidationService.validateAndAdjust(bill, items, null);
 
-        validateSplit(items, totalAmount);
-
-        return billItemRepository.saveAll(items);
+        return billItemRepository.saveAll(validatedItems);
     }
 
     private Map<Long, BigDecimal> calculateShares(List<Room> rooms, AllocationType type, 
@@ -258,43 +257,6 @@ public class BillSplitService {
             return room.getHasAirConditioner() != null && room.getHasAirConditioner();
         }
         return true;
-    }
-
-    private void handleRoundingDifference(List<BillItem> items, BigDecimal totalAmount, 
-            BigDecimal totalCalculated, List<Room> rooms) {
-        BigDecimal difference = totalAmount.subtract(totalCalculated);
-        
-        if (difference.compareTo(BigDecimal.ZERO) == 0) {
-            return;
-        }
-
-        Room targetRoom = rooms.stream()
-                .filter(r -> r.getOccupant() != null)
-                .findFirst()
-                .orElse(rooms.get(0));
-
-        for (BillItem item : items) {
-            if (item.getRoom().getId().equals(targetRoom.getId())) {
-                item.setTotalDue(item.getTotalDue().add(difference));
-                item.setHasRoundingAdjustment(true);
-                item.setRoundingAdjustmentAmount(difference);
-                item.setCalculationDetails(item.getCalculationDetails() + 
-                        String.format("尾差调整: %+.2f元", difference));
-                break;
-            }
-        }
-    }
-
-    private void validateSplit(List<BillItem> items, BigDecimal totalAmount) {
-        BigDecimal sum = items.stream()
-                .map(BillItem::getTotalDue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        if (sum.compareTo(totalAmount) != 0) {
-            throw new BusinessException(
-                String.format("分摊校验失败：明细总额%.2f元不等于账单总额%.2f元，差额%.2f元", 
-                    sum, totalAmount, totalAmount.subtract(sum)));
-        }
     }
 
     private String buildCalculationDetails(Room room, AllocationRule rule, 

@@ -1,6 +1,7 @@
 package com.electricitysplit.dto;
 
 import com.electricitysplit.entity.Bill;
+import com.electricitysplit.entity.BillAmountAuditLog;
 import com.electricitysplit.entity.BillStatus;
 import com.electricitysplit.entity.BillStatusHistory;
 import jakarta.validation.constraints.NotNull;
@@ -127,5 +128,45 @@ public class BillDto {
         private LocalDate periodEnd;
         private BigDecimal totalAmount;
         private List<StatusHistoryResponse> suspiciousTransitions;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AmountAuditLogResponse {
+        private Long id;
+        private Long billId;
+        private String beforeAdjustmentDetails;
+        private String afterAdjustmentDetails;
+        private BigDecimal billTotalAmount;
+        private BigDecimal beforeSum;
+        private BigDecimal afterSum;
+        private BigDecimal difference;
+        private Boolean hasRoundingAdjustment;
+        private Boolean isValid;
+        private Long operatorId;
+        private String operatorName;
+        private String errorMessage;
+        private LocalDateTime createdAt;
+
+        public static AmountAuditLogResponse from(BillAmountAuditLog log) {
+            return AmountAuditLogResponse.builder()
+                    .id(log.getId())
+                    .billId(log.getBill().getId())
+                    .beforeAdjustmentDetails(log.getBeforeAdjustmentDetails())
+                    .afterAdjustmentDetails(log.getAfterAdjustmentDetails())
+                    .billTotalAmount(log.getBillTotalAmount())
+                    .beforeSum(log.getBeforeSum())
+                    .afterSum(log.getAfterSum())
+                    .difference(log.getDifference())
+                    .hasRoundingAdjustment(log.getHasRoundingAdjustment())
+                    .isValid(log.getIsValid())
+                    .operatorId(log.getOperator() != null ? log.getOperator().getId() : null)
+                    .operatorName(log.getOperatorName())
+                    .errorMessage(log.getErrorMessage())
+                    .createdAt(log.getCreatedAt())
+                    .build();
+        }
     }
 }

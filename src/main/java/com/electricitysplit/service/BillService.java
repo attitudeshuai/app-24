@@ -37,6 +37,8 @@ public class BillService {
     private final NotificationService notificationService;
     private final BillStateMachineService stateMachineService;
     private final BillStateMachineConfig stateMachineConfig;
+    private final BillAmountValidationService amountValidationService;
+    private final com.electricitysplit.repository.BillAmountAuditLogRepository billAmountAuditLogRepository;
 
     @Transactional
     public BillDto.Response create(User user, BillDto.CreateRequest request) {
@@ -65,6 +67,7 @@ public class BillService {
 
         if (Boolean.TRUE.equals(request.getAutoSplit())) {
             var items = billSplitService.splitBill(saved, request.getMeterReadingId());
+            amountValidationService.validateForPaymentTransition(saved);
             Bill confirmed = stateMachineService.transition(
                     user, saved, BillStatus.PENDING_PAYMENT, "创建账单后自动确认并发送");
             notificationService.notifyBillCreated(confirmed, items);
@@ -132,6 +135,11 @@ public class BillService {
     @Transactional
     public BillDto.Response transitionStatus(User user, Long id, BillDto.TransitionRequest request) {
         Bill bill = getEntityByIdAndCheckPermission(user, id);
+
+        if (request.getTargetStatus() == BillStatus.PENDING_PAYMENT) {
+            amountValidationService.validateForPaymentTransition(bill);
+        }
+
         String reason = request.getReason() != null ? request.getReason() : "手动状态转换";
         Bill updated = stateMachineService.transition(user, bill, request.getTargetStatus(), reason);
 
@@ -171,6 +179,13 @@ public class BillService {
         List<BillStatusHistory> abnormal = stateMachineService.findAbnormalTransitions(since);
         return abnormal.stream()
                 .map(BillDto.StatusHistoryResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    public List<BillDto.AmountAuditLogResponse> getAmountAuditLogs(User user, Long billId) {
+        getEntityByIdAndCheckPermission(user, billId);
+        return amountValidationService.getAuditLogsForBill(billId).stream()
+                .map(BillDto.AmountAuditLogResponse::from)
                 .collect(Collectors.toList());
     }
 
