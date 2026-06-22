@@ -90,41 +90,55 @@ public class BillAmountValidationService {
         return items;
     }
 
-    @Transactional(readOnly = true)
-    public void validateForPaymentTransition(Bill bill) {
+    @Transactional
+    public void validateForPaymentTransition(Bill bill, User operator) {
         List<BillItem> items = billItemRepository.findByBillId(bill.getId());
+        String itemDetails = serializeItems(items);
+        BigDecimal sum = sumItems(items);
+        BigDecimal billTotal = bill.getTotalAmount();
+        BigDecimal difference = billTotal.subtract(sum);
+        String errorMessage = null;
+        boolean isValid = true;
+
         if (items.isEmpty()) {
-            throw new BusinessException("账单没有明细数据，无法进入待支付状态，请先生成分摊明细");
+            isValid = false;
+            errorMessage = "账单没有明细数据，无法进入待支付状态，请先生成分摊明细";
+        } else if (sum.compareTo(billTotal) != 0) {
+            isValid = false;
+            errorMessage = String.format(
+                "金额校验失败：明细合计 %.2f 元与账单总额 %.2f 元不一致，差额 %.2f 元，请检查分摊规则后重试",
+                sum, billTotal, difference
+            );
         }
 
-        BigDecimal sum = sumItems(items);
-        if (sum.compareTo(bill.getTotalAmount()) != 0) {
-            String errorMessage = String.format(
-                "金额校验失败：明细合计 %.2f 元与账单总额 %.2f 元不一致，差额 %.2f 元，请检查分摊规则后重试",
-                sum, bill.getTotalAmount(), bill.getTotalAmount().subtract(sum)
-            );
+        saveAuditLog(bill, itemDetails, itemDetails,
+                billTotal, sum, sum,
+                difference, false, isValid, operator, errorMessage);
 
-            saveAuditLog(bill, serializeItems(items), serializeItems(items),
-                    bill.getTotalAmount(), sum, sum,
-                    bill.getTotalAmount().subtract(sum), false, false, null, errorMessage);
-
+        if (!isValid) {
             notificationService.notifyAdmin(
                 bill,
                 "【异常告警】账单进入待支付前校验失败",
                 String.format(
-                    "账单ID：%d\n账单期间：%s 至 %s\n账单总额：%.2f 元\n明细合计：%.2f 元\n差额：%.2f 元\n错误信息：%s\n\n请检查并修正分摊规则。",
+                    "账单ID：%d\n账单期间：%s 至 %s\n账单总额：%.2f 元\n明细合计：%.2f 元\n差额：%.2f 元\n操作人：%s\n错误信息：%s\n\n请检查并修正分摊规则。",
                     bill.getId(),
                     bill.getPeriodStart(),
                     bill.getPeriodEnd(),
-                    bill.getTotalAmount(),
+                    billTotal,
                     sum,
-                    bill.getTotalAmount().subtract(sum),
+                    difference,
+                    operator != null ? operator.getUsername() : "SYSTEM",
                     errorMessage
                 )
             );
 
             throw new BusinessException(errorMessage);
         }
+
+        log.info(
+            "账单 {} 进入待支付前金额校验通过，明细合计 {} 元 = 账单总额 {} 元，操作人：{}",
+            bill.getId(), sum, billTotal, operator != null ? operator.getUsername() : "SYSTEM"
+        );
     }
 
     private boolean isWithinRoundingTolerance(BigDecimal difference) {

@@ -67,7 +67,7 @@ public class BillService {
 
         if (Boolean.TRUE.equals(request.getAutoSplit())) {
             var items = billSplitService.splitBill(saved, request.getMeterReadingId());
-            amountValidationService.validateForPaymentTransition(saved);
+            amountValidationService.validateForPaymentTransition(saved, user);
             Bill confirmed = stateMachineService.transition(
                     user, saved, BillStatus.PENDING_PAYMENT, "创建账单后自动确认并发送");
             notificationService.notifyBillCreated(confirmed, items);
@@ -137,7 +137,7 @@ public class BillService {
         Bill bill = getEntityByIdAndCheckPermission(user, id);
 
         if (request.getTargetStatus() == BillStatus.PENDING_PAYMENT) {
-            amountValidationService.validateForPaymentTransition(bill);
+            amountValidationService.validateForPaymentTransition(bill, user);
         }
 
         String reason = request.getReason() != null ? request.getReason() : "手动状态转换";
