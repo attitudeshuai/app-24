@@ -165,16 +165,6 @@ public class RoomService {
         roomRepository.save(room);
     }
 
-    @Transactional
-    public void forceDelete(User user, Long id, String reason) {
-        Room room = getEntityByIdAndCheckPermission(user, id);
-        room.setIsDeleted(true);
-        room.setDeletedAt(LocalDateTime.now());
-        room.setDeletedBy(user);
-        room.setDeleteReason(reason);
-        roomRepository.save(room);
-    }
-
     public RoomDto.RoomDataExport exportRoomData(User user, Long id) {
         Room room = roomRepository.findByIdAndUserIdIncludeDeleted(id, user.getId())
                 .orElseThrow(() -> new BusinessException("房间不存在或无权限访问"));

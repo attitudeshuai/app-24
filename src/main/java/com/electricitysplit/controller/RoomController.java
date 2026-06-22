@@ -73,19 +73,13 @@ public class RoomController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id, @RequestBody(required = false) RoomDto.DeleteRequest request) {
+    public ApiResponse<Void> delete(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason
+    ) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String reason = request != null ? request.getReason() : null;
         roomService.delete(currentUser, id, reason);
         return ApiResponse.success("删除成功", null);
-    }
-
-    @PostMapping("/{id}/force-delete")
-    public ApiResponse<Void> forceDelete(@PathVariable Long id, @RequestBody(required = false) RoomDto.DeleteRequest request) {
-        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String reason = request != null ? request.getReason() : null;
-        roomService.forceDelete(currentUser, id, reason);
-        return ApiResponse.success("强制删除成功", null);
     }
 
     @GetMapping("/{id}/export")
